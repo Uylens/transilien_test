@@ -131,23 +131,24 @@ header.appli .pousse{ margin-left:auto; }
    ======================================================================== */
 .grille-indic{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:18px;
-  max-width:1100px;
-  margin:26px auto;
+  grid-template-columns:repeat(3,auto);
+  justify-content:center;
+  gap:14px;
+  margin:16px auto;
   padding:0 22px;
 }
 .grille-indic figure{ margin:0; }
 .grille-indic button.carte-zoom{
   padding:0; background:none; box-shadow:none; border-radius:var(--rayon);
-  width:100%; overflow:hidden; display:block;
+  overflow:hidden; display:block;
 }
 .grille-indic img{
-  width:100%; border-radius:var(--rayon); box-shadow:var(--ombre);
+  width:auto; height:34vh;            /* hauteur limitée : les 6 cartes + le bouton tiennent sans scroll */
+  border-radius:var(--rayon); box-shadow:var(--ombre);
   transition:transform var(--transi);
 }
 .grille-indic button.carte-zoom:hover img{ transform:translateY(-4px) scale(1.02); }
-.barre-actions{ text-align:center; padding:10px 22px 50px; }
+.barre-actions{ text-align:center; padding:10px 22px 24px; }
 
 /* ===========================================================================
    5) ÉCRAN DE JEU — plateau (≈ 2/3) + panneau latéral (≈ 1/3)
@@ -162,38 +163,40 @@ header.appli .pousse{ margin-left:auto; }
   margin:0 auto;
 }
 
-/* ---- Plateau : 6 indicateurs en 2 colonnes × 3 lignes ---- */
+/* ---- Plateau : 6 cartes indicateurs en double colonne centrale (2 × 3),
+       les zones de dépôt sont placées « de part et d'autre » des cartes ---- */
 .plateau{
   display:grid;
   grid-template-columns:repeat(2,1fr);
-  gap:16px;
-}
-.bloc-indic{
+  gap:12px;
   background:#ffffff;
   border-radius:var(--rayon);
-  padding:10px;
+  padding:14px;
   box-shadow:var(--ombre);
-  display:flex;
-  flex-direction:column;
-  gap:8px;
 }
-.bloc-indic .num{
-  font-size:.72rem; font-weight:700; color:var(--panneau);
-  text-transform:uppercase; letter-spacing:.04em;
-}
-.bloc-indic .titre-indic{ font-size:.82rem; font-weight:700; color:var(--panneau); }
+/* Un bloc = une zone (côté extérieur) + la carte indicateur (côté centre) */
+.bloc-indic{ display:flex; align-items:stretch; gap:10px; }
+.bloc-indic.miroir{ flex-direction:row-reverse; } /* colonne de droite : carte vers le centre */
+.zone-wrap{ flex:1 1 0; min-width:0; display:flex; }
+.carte-cell{ flex:0 0 auto; align-self:center; text-align:center; }
 .carte-indic{
-  width:100%; border-radius:10px; box-shadow:0 2px 8px rgba(14,42,34,.18);
+  height:17vh; width:auto; max-width:100%;
+  border-radius:10px; box-shadow:0 2px 8px rgba(14,42,34,.18);
   cursor:zoom-in;
+}
+.carte-cell .cap{
+  font-size:.66rem; font-weight:700; color:var(--panneau);
+  margin-top:4px; max-width:15ch; line-height:1.15; margin-inline:auto;
 }
 
 /* ---- Zones de dépôt ---- */
 .zone{
+  flex:1 1 auto; width:100%;
   border:2px dashed var(--zone-contour);
   background:var(--zone-vide-fond);
   border-radius:10px;
-  padding:8px;
-  min-height:74px;
+  padding:7px;
+  min-height:60px;
   transition:background var(--transi), border-color var(--transi);
 }
 .zone .label-zone{
@@ -208,9 +211,9 @@ header.appli .pousse{ margin-left:auto; }
 .zone.survol{ background:#dff4d0; border-color:var(--succes); border-style:solid; }
 
 /* Miniatures des cartes placées : jamais de superposition (flex-wrap) */
-.miniatures{ display:flex; flex-wrap:wrap; gap:6px; max-height:230px; overflow:auto; }
+.miniatures{ display:flex; flex-wrap:wrap; gap:5px; max-height:20vh; overflow:auto; }
 .miniatures img{
-  width:54px; border-radius:6px; cursor:zoom-in;
+  width:44px; border-radius:6px; cursor:zoom-in;
   box-shadow:0 1px 4px rgba(14,42,34,.25);
   transition:transform var(--transi);
 }
@@ -246,14 +249,7 @@ header.appli .pousse{ margin-left:auto; }
   cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;
   transition:outline var(--transi), transform var(--transi);
 }
-.carte-active.selection{ outline:4px solid var(--accent); outline-offset:3px; }
 .carte-active:active{ cursor:grabbing; }
-/* Bouton loupe sur la carte active */
-.btn-loupe{
-  position:absolute; top:6px; right:6px; width:34px; height:34px; padding:0;
-  border-radius:50%; background:rgba(255,255,255,.92); font-size:1rem;
-  box-shadow:0 2px 6px rgba(0,0,0,.35); line-height:1;
-}
 .aide-placement{ font-size:.78rem; text-align:center; opacity:.85; }
 
 /* Compteurs + pioche */
@@ -266,9 +262,9 @@ header.appli .pousse{ margin-left:auto; }
 .stat .lib{ font-size:.68rem; opacity:.85; }
 .stat.erreurs .val{ color:var(--erreur); }
 
-.pioche{ display:flex; align-items:center; gap:10px; }
-.pioche img{ width:46px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.4); }
-.pioche .txt{ font-size:.8rem; opacity:.9; }
+.pioche{ display:flex; align-items:center; justify-content:center; gap:10px; }
+.pioche .txt{ font-size:.85rem; opacity:.9; }
+#btn-proposer{ width:100%; }
 
 /* Feedback immédiat (texte + couleur) */
 .feedback{
@@ -318,12 +314,15 @@ header.appli .pousse{ margin-left:auto; }
 @media (max-width:1000px){
   .jeu-layout{ grid-template-columns:1fr; }
   .panneau{ position:static; order:-1; } /* carte active visible en haut */
-  .carte-active-wrap{ width:46%; }
-  .grille-indic{ grid-template-columns:repeat(2,1fr); }
+  .carte-active-wrap{ width:42%; }
+  .carte-indic{ height:20vh; }
 }
-@media (max-width:560px){
-  .plateau{ grid-template-columns:1fr; }   /* une colonne sur très petit écran */
+@media (max-width:620px){
+  .plateau{ grid-template-columns:1fr; }                 /* une seule colonne */
+  .bloc-indic, .bloc-indic.miroir{ flex-direction:column; } /* zone au-dessus de la carte */
+  .carte-indic{ height:auto; width:62%; }
   .grille-indic{ grid-template-columns:1fr; }
+  .grille-indic img{ height:auto; width:70%; margin-inline:auto; }
   .centre h2{ font-size:1.4rem; }
 }
 /* Réduction des animations si l'utilisateur le demande (accessibilité) */
@@ -410,11 +409,9 @@ header.appli .pousse{ margin-left:auto; }
         <span class="etiquette-active">Carte à placer</span>
         <div class="carte-active-wrap" id="carte-active-wrap">
           <img id="carte-active" class="carte-active" alt="Carte à placer" />
-          <button class="btn-loupe" id="btn-loupe" title="Agrandir la carte"
-                  aria-label="Agrandir la carte">🔍</button>
         </div>
         <div class="aide-placement" id="aide-placement">
-          Glissez la carte sur le bon indicateur — ou cliquez la carte puis la zone cible.
+          Cliquez la carte pour l'agrandir. Maintenez le clic et glissez-la sur le bon indicateur.
         </div>
       </div>
 
@@ -425,8 +422,9 @@ header.appli .pousse{ margin-left:auto; }
         <div class="stat erreurs"><div class="val" id="cpt-erreurs">0</div><div class="lib">Erreurs</div></div>
       </div>
 
+      <button id="btn-proposer" class="secondaire">🔄 Proposer une autre carte</button>
+
       <div class="pioche">
-        <img id="img-pioche" alt="Pioche (dos de carte)" />
         <span class="txt" id="pioche-txt">Pioche</span>
       </div>
 
@@ -702,33 +700,36 @@ function construireEtape1(){
 function construirePlateau(){
   const plateau = $("#plateau");
   plateau.innerHTML = "";
-  INDICATEURS.forEach(ind => {
+  INDICATEURS.forEach((ind, i) => {
     const bloc = document.createElement("div");
-    bloc.className = "bloc-indic";
+    // Colonne de droite (indicateurs 2, 4, 6) : on inverse l'ordre pour que la
+    // carte soit côté centre et la zone de dépôt côté extérieur.
+    bloc.className = "bloc-indic" + (i % 2 === 1 ? " miroir" : "");
 
-    // Zone de dépôt des sous-indicateurs (au-dessus de la carte indicateur)
-    const zoneSous = zoneDepot(ind.id, "sous", "Glissez ici les sous-indicateurs");
+    // Conteneur des deux zones (sous-indicateurs / métiers) ; une seule est
+    // visible selon l'étape en cours (cf. majZonesActives).
+    const wrap = document.createElement("div");
+    wrap.className = "zone-wrap";
+    wrap.appendChild(zoneDepot(ind.id, "sous",   "Glissez ici les sous-indicateurs"));
+    wrap.appendChild(zoneDepot(ind.id, "metier", "Glissez ici les métiers"));
 
-    // Carte indicateur (cliquable → lightbox)
+    // Carte indicateur + légende (cliquable → lightbox)
+    const cell = document.createElement("div");
+    cell.className = "carte-cell";
     const img = document.createElement("img");
     img.className = "carte-indic";
     img.src = ind.img;
     img.loading = "lazy";
     img.alt = "Indicateur " + ind.id + " — " + ind.titre;
     img.addEventListener("click", () => ouvrirLightbox(ind.img, img.alt));
+    const cap = document.createElement("div");
+    cap.className = "cap";
+    cap.textContent = "Indicateur " + ind.id + " · " + ind.titre;
+    cell.appendChild(img);
+    cell.appendChild(cap);
 
-    // Zone de dépôt des métiers (sous la carte indicateur)
-    const zoneMetier = zoneDepot(ind.id, "metier", "Glissez ici les métiers");
-
-    // Titre court de l'indicateur
-    const titre = document.createElement("div");
-    titre.className = "titre-indic";
-    titre.innerHTML = '<span class="num">Indicateur '+ind.id+'</span><br>'+ind.titre;
-
-    bloc.appendChild(zoneSous);
-    bloc.appendChild(titre);
-    bloc.appendChild(img);
-    bloc.appendChild(zoneMetier);
+    bloc.appendChild(wrap);
+    bloc.appendChild(cell);
     plateau.appendChild(bloc);
   });
 }
@@ -739,8 +740,6 @@ function zoneDepot(indId, type, libelle){
   z.className = "zone";
   z.dataset.ind = indId;
   z.dataset.type = type;
-  z.setAttribute("role", "button");
-  z.setAttribute("tabindex", "0");
   z.setAttribute("aria-label", libelle + " — indicateur " + indId);
 
   const lab = document.createElement("span");
@@ -752,28 +751,19 @@ function zoneDepot(indId, type, libelle){
 
   z.appendChild(lab);
   z.appendChild(minis);
-
-  // Mode « toucher » : cliquer une zone tente d'y placer la carte sélectionnée
-  z.addEventListener("click", () => {
-    if (etat.selection && z.classList.contains("active")) tenterPlacement(indId);
-  });
-  // Accessibilité clavier : Entrée / Espace
-  z.addEventListener("keydown", (e) => {
-    if ((e.key === "Enter" || e.key === " ") && z.classList.contains("active")){
-      e.preventDefault();
-      if (etat.selection) tenterPlacement(indId);
-    }
-  });
   return z;
 }
 
-/* Active/désactive les zones selon l'étape en cours */
+/* Affiche les zones du type de l'étape, masque l'autre type.
+   Étape 2 : on montre les zones « sous-indicateurs ».
+   Étape 3 : on masque les sous-indicateurs (et les cartes déjà placées)
+             pour laisser la place aux zones « métiers ». */
 function majZonesActives(){
   document.querySelectorAll(".zone").forEach(z => {
-    const active = (etat.phase === 2 && z.dataset.type === "sous") ||
-                   (etat.phase === 3 && z.dataset.type === "metier");
-    z.classList.toggle("active", active);
-    z.classList.toggle("inactive", !active);
+    const visible = (etat.phase === 2) ? (z.dataset.type === "sous")
+                                       : (z.dataset.type === "metier");
+    z.style.display = visible ? "" : "none";
+    z.classList.toggle("active", visible);
   });
 }
 
@@ -831,6 +821,9 @@ function majCompteurs(){
   $("#cpt-restantes").textContent = etat.deck.length;
   $("#cpt-erreurs").textContent = etat.erreurs;
   $("#pioche-txt").textContent = "Pioche : " + etat.deck.length + " carte(s)";
+  // « Proposer une autre carte » n'a de sens que s'il reste au moins 2 cartes
+  const proposer = $("#btn-proposer");
+  if (proposer) proposer.disabled = etat.deck.length <= 1;
 }
 
 /* Affiche un retour visuel + textuel */
@@ -993,21 +986,14 @@ function initInteractions(){
       nettoyerSurvol();
       if (zone) tenterPlacement(parseInt(zone.dataset.ind,10));
     } else {
-      // Simple clic/tap : on (dé)sélectionne la carte (mode « toucher »)
-      etat.selection = !etat.selection;
-      carte.classList.toggle("selection", etat.selection);
+      // Simple clic/tap (sans glisser) : on agrandit la carte, comme à l'étape 1
+      if (etat.active) ouvrirLightbox(etat.active.img, "Carte à placer");
     }
     drag = null;
   });
 
   carte.addEventListener("pointercancel", () => {
     ghost.style.display = "none"; nettoyerSurvol(); drag = null;
-  });
-
-  // Bouton loupe : agrandit la carte active
-  $("#btn-loupe").addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (etat.active) ouvrirLightbox(etat.active.img, "Carte à placer");
   });
 }
 
@@ -1035,7 +1021,6 @@ function nettoyerSurvol(){
 function init(){
   // Visuels « dos de carte »
   $("#img-couverture").src = DOS_CARTE;
-  $("#img-pioche").src = DOS_CARTE;
   $("#carte-active").src = DOS_CARTE; // placeholder en attendant la 1re pioche
 
   // Préchargement + vérification de toutes les images
@@ -1074,6 +1059,15 @@ function init(){
   $("#btn-rejouer").addEventListener("click", reinitialiser);
   $("#btn-rejouer-haut").addEventListener("click", () => {
     if (confirm("Recommencer la partie depuis l'étape 2 ?")) reinitialiser();
+  });
+
+  // « Proposer une autre carte » : tire une autre carte au hasard, sans pénalité
+  $("#btn-proposer").addEventListener("click", () => {
+    if (!etat.active) return;
+    piocher(cle(etat.active));
+    const f = $("#feedback");
+    f.className = "feedback";
+    f.textContent = "Autre carte proposée 🔄";
   });
 }
 
