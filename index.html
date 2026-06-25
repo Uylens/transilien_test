@@ -143,7 +143,7 @@ header.appli .pousse{ margin-left:auto; }
   overflow:hidden; display:block;
 }
 .grille-indic img{
-  width:auto; height:34vh;            /* hauteur limitée : les 6 cartes + le bouton tiennent sans scroll */
+  width:auto; height:40vh;            /* hauteur limitée : les 6 cartes + le bouton tiennent sans scroll */
   border-radius:var(--rayon); box-shadow:var(--ombre);
   transition:transform var(--transi);
 }
@@ -180,13 +180,9 @@ header.appli .pousse{ margin-left:auto; }
 .zone-wrap{ flex:1 1 0; min-width:0; display:flex; }
 .carte-cell{ flex:0 0 auto; align-self:center; text-align:center; }
 .carte-indic{
-  height:17vh; width:auto; max-width:100%;
+  height:22vh; width:auto; max-width:100%;
   border-radius:10px; box-shadow:0 2px 8px rgba(14,42,34,.18);
   cursor:zoom-in;
-}
-.carte-cell .cap{
-  font-size:.66rem; font-weight:700; color:var(--panneau);
-  margin-top:4px; max-width:15ch; line-height:1.15; margin-inline:auto;
 }
 
 /* ---- Zones de dépôt ---- */
@@ -315,7 +311,7 @@ header.appli .pousse{ margin-left:auto; }
   .jeu-layout{ grid-template-columns:1fr; }
   .panneau{ position:static; order:-1; } /* carte active visible en haut */
   .carte-active-wrap{ width:42%; }
-  .carte-indic{ height:20vh; }
+  .carte-indic{ height:26vh; }
 }
 @media (max-width:620px){
   .plateau{ grid-template-columns:1fr; }                 /* une seule colonne */
@@ -713,7 +709,8 @@ function construirePlateau(){
     wrap.appendChild(zoneDepot(ind.id, "sous",   "Glissez ici les sous-indicateurs"));
     wrap.appendChild(zoneDepot(ind.id, "metier", "Glissez ici les métiers"));
 
-    // Carte indicateur + légende (cliquable → lightbox)
+    // Carte indicateur (cliquable → lightbox). Le titre n'est pas affiché : il
+    // figure déjà sur l'image ; on le conserve en texte alternatif (accessibilité).
     const cell = document.createElement("div");
     cell.className = "carte-cell";
     const img = document.createElement("img");
@@ -722,11 +719,7 @@ function construirePlateau(){
     img.loading = "lazy";
     img.alt = "Indicateur " + ind.id + " — " + ind.titre;
     img.addEventListener("click", () => ouvrirLightbox(ind.img, img.alt));
-    const cap = document.createElement("div");
-    cap.className = "cap";
-    cap.textContent = "Indicateur " + ind.id + " · " + ind.titre;
     cell.appendChild(img);
-    cell.appendChild(cap);
 
     bloc.appendChild(wrap);
     bloc.appendChild(cell);
@@ -1061,13 +1054,10 @@ function init(){
     if (confirm("Recommencer la partie depuis l'étape 2 ?")) reinitialiser();
   });
 
-  // « Proposer une autre carte » : tire une autre carte au hasard, sans pénalité
+  // « Proposer une autre carte » : tire une autre carte au hasard, sans pénalité.
+  // On ne touche pas au feedback (réservé à « Bonne / Mauvaise réponse »).
   $("#btn-proposer").addEventListener("click", () => {
-    if (!etat.active) return;
-    piocher(cle(etat.active));
-    const f = $("#feedback");
-    f.className = "feedback";
-    f.textContent = "Autre carte proposée 🔄";
+    if (etat.active) piocher(cle(etat.active));
   });
 }
 
