@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jeu de cartes — Contrat Transilien × Île-de-France Mobilités</title>
+
+<!-- ============================================================================
+     APPLICATION 100 % STATIQUE — un seul fichier, aucune dépendance externe.
+     Fonctionne par double-clic sur index.html (protocole file://) et via
+     GitHub Pages. Aucun framework, aucun CDN, aucun appel réseau.
+     ========================================================================= -->
+
+<style>
+/* ===========================================================================
+   1) PALETTE & VARIABLES — Direction artistique (facile à ajuster)
+   ======================================================================== */
+:root{
+  --fond-page:      #E5F4E7;  /* fond de page                       */
+  --panneau:        #0E2A22;  /* panneaux / en-têtes (vert foncé)   */
+  --texte-clair:    #FFFFFF;  /* texte sur fond foncé               */
+  --texte-fonce:    #0E2A22;  /* texte sur fond clair               */
+  --accent:         #8FD24A;  /* accent principal (vert vif)        */
+  --succes:         #27C07F;  /* réussite                           */
+  --erreur:         #E0533D;  /* erreur                             */
+  --zone-vide-fond: #F1FBF1;  /* fond de zone de dépôt vide (pâle)  */
+  --zone-contour:   #8FD24A;  /* contour pointillé des zones vides  */
+  --ombre:          0 4px 14px rgba(14,42,34,.14);
+  --rayon:          14px;
+  --transi:         .18s ease;
+  /* Ratio des cartes (portrait) — utilisé pour garder de jolies proportions */
+  --ratio-carte:    1.366; /* hauteur / largeur ≈ 1260/922 */
+}
+
+/* ===========================================================================
+   2) BASE
+   ======================================================================== */
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:var(--fond-page);
+  color:var(--texte-fonce);
+  line-height:1.4;
+  -webkit-font-smoothing:antialiased;
+}
+img{ display:block; max-width:100%; }
+
+/* Boutons accessibles */
+button{
+  font:inherit;
+  cursor:pointer;
+  border:none;
+  border-radius:999px;
+  padding:.7em 1.4em;
+  background:var(--accent);
+  color:var(--texte-fonce);
+  font-weight:700;
+  box-shadow:var(--ombre);
+  transition:transform var(--transi), filter var(--transi);
+}
+button:hover{ filter:brightness(1.05); }
+button:active{ transform:translateY(1px); }
+button.secondaire{ background:var(--panneau); color:var(--texte-clair); }
+button:disabled{ opacity:.45; cursor:not-allowed; }
+
+/* Focus clavier toujours visible (accessibilité) */
+:focus-visible{ outline:3px solid var(--panneau); outline-offset:2px; }
+
+.cache{ display:none !important; }
+
+/* ===========================================================================
+   3) STRUCTURE D'ÉCRAN
+   ======================================================================== */
+.ecran{ min-height:100vh; }
+
+/* En-tête commun */
+header.appli{
+  background:var(--panneau);
+  color:var(--texte-clair);
+  padding:14px 20px;
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+}
+header.appli h1{ font-size:1.05rem; margin:0; font-weight:700; }
+header.appli .sous-titre{ font-size:.82rem; opacity:.85; }
+header.appli .pousse{ margin-left:auto; }
+
+/* ---- Écran d'accueil & écran de fin : carte centrale ---- */
+.centre{
+  max-width:760px;
+  margin:0 auto;
+  padding:40px 22px 60px;
+  text-align:center;
+}
+.centre h2{ font-size:1.8rem; margin:.2em 0 .4em; }
+.centre p{ font-size:1.05rem; }
+.couverture{
+  width:230px;
+  margin:26px auto;
+  border-radius:var(--rayon);
+  box-shadow:var(--ombre);
+  overflow:hidden;
+  background:var(--panneau);
+}
+.couverture img{ width:100%; }
+
+/* Barre de progression du préchargement des images */
+.chargement{ margin:24px auto; max-width:420px; }
+.barre{
+  height:14px; border-radius:999px; background:#cbe6cf; overflow:hidden;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.15);
+}
+.barre > span{ display:block; height:100%; width:0%; background:var(--accent); transition:width .15s; }
+.chargement .pct{ font-size:.85rem; margin-top:6px; color:var(--panneau); }
+
+/* Bloc d'erreur (image manquante) */
+.bloc-erreur{
+  margin:24px auto; max-width:560px; text-align:left;
+  background:#fff; border:2px solid var(--erreur);
+  border-radius:var(--rayon); padding:18px 20px; box-shadow:var(--ombre);
+}
+.bloc-erreur h3{ color:var(--erreur); margin:0 0 8px; }
+.bloc-erreur ul{ margin:8px 0 0; padding-left:20px; }
+.bloc-erreur code{ background:#fdecea; padding:1px 5px; border-radius:5px; }
+
+/* ===========================================================================
+   4) ÉTAPE 1 — Découvrir les 6 indicateurs
+   ======================================================================== */
+.grille-indic{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:18px;
+  max-width:1100px;
+  margin:26px auto;
+  padding:0 22px;
+}
+.grille-indic figure{ margin:0; }
+.grille-indic button.carte-zoom{
+  padding:0; background:none; box-shadow:none; border-radius:var(--rayon);
+  width:100%; overflow:hidden; display:block;
+}
+.grille-indic img{
+  width:100%; border-radius:var(--rayon); box-shadow:var(--ombre);
+  transition:transform var(--transi);
+}
+.grille-indic button.carte-zoom:hover img{ transform:translateY(-4px) scale(1.02); }
+.barre-actions{ text-align:center; padding:10px 22px 50px; }
+
+/* ===========================================================================
+   5) ÉCRAN DE JEU — plateau (≈ 2/3) + panneau latéral (≈ 1/3)
+   ======================================================================== */
+.jeu-layout{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:18px;
+  align-items:start;
+  padding:18px;
+  max-width:1500px;
+  margin:0 auto;
+}
+
+/* ---- Plateau : 6 indicateurs en 2 colonnes × 3 lignes ---- */
+.plateau{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:16px;
+}
+.bloc-indic{
+  background:#ffffff;
+  border-radius:var(--rayon);
+  padding:10px;
+  box-shadow:var(--ombre);
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.bloc-indic .num{
+  font-size:.72rem; font-weight:700; color:var(--panneau);
+  text-transform:uppercase; letter-spacing:.04em;
+}
+.bloc-indic .titre-indic{ font-size:.82rem; font-weight:700; color:var(--panneau); }
+.carte-indic{
+  width:100%; border-radius:10px; box-shadow:0 2px 8px rgba(14,42,34,.18);
+  cursor:zoom-in;
+}
+
+/* ---- Zones de dépôt ---- */
+.zone{
+  border:2px dashed var(--zone-contour);
+  background:var(--zone-vide-fond);
+  border-radius:10px;
+  padding:8px;
+  min-height:74px;
+  transition:background var(--transi), border-color var(--transi);
+}
+.zone .label-zone{
+  font-size:.72rem; color:#5d7d64; font-weight:600; margin-bottom:6px;
+  display:block;
+}
+/* Zone inactive (étape en cours ne la concerne pas) : visible mais neutre */
+.zone.inactive{ opacity:.5; border-style:solid; border-color:#c7ddc9; }
+/* Zone active prête à recevoir */
+.zone.active{ border-color:var(--accent); }
+/* Survol par une carte compatible */
+.zone.survol{ background:#dff4d0; border-color:var(--succes); border-style:solid; }
+
+/* Miniatures des cartes placées : jamais de superposition (flex-wrap) */
+.miniatures{ display:flex; flex-wrap:wrap; gap:6px; max-height:230px; overflow:auto; }
+.miniatures img{
+  width:54px; border-radius:6px; cursor:zoom-in;
+  box-shadow:0 1px 4px rgba(14,42,34,.25);
+  transition:transform var(--transi);
+}
+.miniatures img:hover{ transform:scale(1.08); }
+
+/* ===========================================================================
+   6) PANNEAU LATÉRAL DROIT
+   ======================================================================== */
+.panneau{
+  background:var(--panneau);
+  color:var(--texte-clair);
+  border-radius:var(--rayon);
+  padding:16px;
+  box-shadow:var(--ombre);
+  position:sticky;
+  top:14px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.panneau h2{ margin:0; font-size:1.05rem; }
+.panneau .consigne{ font-size:.85rem; opacity:.9; }
+
+/* Carte active à placer */
+.zone-active-carte{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+.etiquette-active{
+  background:var(--accent); color:var(--texte-fonce); font-weight:700;
+  font-size:.78rem; padding:4px 12px; border-radius:999px;
+}
+.carte-active-wrap{ position:relative; width:62%; max-width:240px; min-width:150px; }
+.carte-active{
+  width:100%; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,.4);
+  cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;
+  transition:outline var(--transi), transform var(--transi);
+}
+.carte-active.selection{ outline:4px solid var(--accent); outline-offset:3px; }
+.carte-active:active{ cursor:grabbing; }
+/* Bouton loupe sur la carte active */
+.btn-loupe{
+  position:absolute; top:6px; right:6px; width:34px; height:34px; padding:0;
+  border-radius:50%; background:rgba(255,255,255,.92); font-size:1rem;
+  box-shadow:0 2px 6px rgba(0,0,0,.35); line-height:1;
+}
+.aide-placement{ font-size:.78rem; text-align:center; opacity:.85; }
+
+/* Compteurs + pioche */
+.stats{ display:flex; gap:10px; }
+.stat{
+  flex:1; background:rgba(255,255,255,.08); border-radius:10px; padding:8px;
+  text-align:center;
+}
+.stat .val{ font-size:1.4rem; font-weight:800; }
+.stat .lib{ font-size:.68rem; opacity:.85; }
+.stat.erreurs .val{ color:var(--erreur); }
+
+.pioche{ display:flex; align-items:center; gap:10px; }
+.pioche img{ width:46px; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,.4); }
+.pioche .txt{ font-size:.8rem; opacity:.9; }
+
+/* Feedback immédiat (texte + couleur) */
+.feedback{
+  min-height:42px; border-radius:10px; padding:10px; text-align:center;
+  font-weight:800; font-size:1rem; display:flex; align-items:center;
+  justify-content:center; transition:background var(--transi);
+  background:rgba(255,255,255,.06);
+}
+.feedback.ok{ background:var(--succes); color:#06291c; }
+.feedback.ko{ background:var(--erreur); color:#fff; }
+
+/* Message de fin d'étape (passage étape 2 → 3) */
+.bandeau-etape{
+  background:var(--succes); color:#06291c; border-radius:10px; padding:12px;
+  text-align:center; font-weight:700;
+}
+.bandeau-etape button{ margin-top:8px; background:var(--panneau); color:#fff; }
+
+/* ===========================================================================
+   7) GHOST (carte qui suit le pointeur pendant le glisser-déposer)
+   ======================================================================== */
+#ghost{
+  position:fixed; top:0; left:0; z-index:9000; width:150px;
+  pointer-events:none; opacity:.92; transform:translate(-50%,-50%) rotate(-3deg);
+  border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.45); display:none;
+}
+
+/* ===========================================================================
+   8) LIGHTBOX (agrandissement)
+   ======================================================================== */
+.lightbox{
+  position:fixed; inset:0; z-index:9500; background:rgba(6,20,16,.85);
+  display:flex; align-items:center; justify-content:center; padding:24px;
+}
+.lightbox img{
+  max-width:92vw; max-height:84vh; border-radius:12px;
+  box-shadow:0 14px 50px rgba(0,0,0,.6);
+}
+.lightbox .fermer{
+  position:absolute; top:18px; right:18px; background:#fff; color:var(--texte-fonce);
+}
+
+/* ===========================================================================
+   9) RESPONSIVE
+   ======================================================================== */
+/* Tablette portrait / écrans étroits : on empile, panneau au-dessus du plateau */
+@media (max-width:1000px){
+  .jeu-layout{ grid-template-columns:1fr; }
+  .panneau{ position:static; order:-1; } /* carte active visible en haut */
+  .carte-active-wrap{ width:46%; }
+  .grille-indic{ grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:560px){
+  .plateau{ grid-template-columns:1fr; }   /* une colonne sur très petit écran */
+  .grille-indic{ grid-template-columns:1fr; }
+  .centre h2{ font-size:1.4rem; }
+}
+/* Réduction des animations si l'utilisateur le demande (accessibilité) */
+@media (prefers-reduced-motion:reduce){
+  *{ transition:none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- =========================================================================
+     ÉCRAN 0 — ACCUEIL (chargement + vérification des images)
+     ====================================================================== -->
+<section id="ecran-accueil" class="ecran">
+  <header class="appli">
+    <h1>🚆 Contrat Transilien × Île-de-France Mobilités</h1>
+    <span class="sous-titre">Jeu de cartes pédagogique</span>
+  </header>
+
+  <div class="centre">
+    <h2>Reconstituez le contrat</h2>
+    <p>
+      Reconstituez le contrat Transilien × Île-de-France Mobilités en associant les
+      sous-indicateurs et les métiers aux bons indicateurs. Chaque carte révèle un lien
+      concret entre les engagements du contrat, les métiers et les attentes des voyageurs.
+    </p>
+
+    <div class="couverture"><img id="img-couverture" alt="Dos de carte du jeu" /></div>
+
+    <!-- Préchargement / vérification des images -->
+    <div id="chargement" class="chargement">
+      <div class="barre"><span id="barre-jauge"></span></div>
+      <div class="pct" id="chargement-txt">Vérification des images…</div>
+    </div>
+
+    <!-- Bloc affiché si une ou plusieurs images manquent -->
+    <div id="bloc-erreur" class="bloc-erreur cache">
+      <h3>⚠️ Images manquantes</h3>
+      <p>Le jeu ne peut pas démarrer tant que toutes les images du dossier
+         <code>images/</code> ne sont pas présentes. Fichier(s) introuvable(s) :</p>
+      <ul id="liste-manquantes"></ul>
+    </div>
+
+    <button id="btn-commencer" class="cache" disabled>Commencer</button>
+  </div>
+</section>
+
+<!-- =========================================================================
+     ÉCRAN 1 — DÉCOUVRIR LES 6 INDICATEURS
+     ====================================================================== -->
+<section id="ecran-etape1" class="ecran cache">
+  <header class="appli">
+    <h1>🚆 Étape 1 — Les 6 indicateurs du contrat</h1>
+    <span class="sous-titre">Cliquez sur une carte pour l'agrandir</span>
+  </header>
+
+  <div class="grille-indic" id="grille-indicateurs"><!-- rempli par JS --></div>
+
+  <div class="barre-actions">
+    <button id="btn-comprendre">J'ai compris, je commence</button>
+  </div>
+</section>
+
+<!-- =========================================================================
+     ÉCRAN 2 — JEU (étapes 2 et 3 : plateau + panneau latéral)
+     ====================================================================== -->
+<section id="ecran-jeu" class="ecran cache">
+  <header class="appli">
+    <h1 id="titre-jeu">🚆 Étape 2 — Placer les sous-indicateurs</h1>
+    <span class="sous-titre">Glissez-déposez la carte ou utilisez le mode « toucher »</span>
+    <button id="btn-rejouer-haut" class="secondaire pousse">Recommencer</button>
+  </header>
+
+  <div class="jeu-layout">
+    <!-- Plateau de jeu -->
+    <div class="plateau" id="plateau"><!-- rempli par JS --></div>
+
+    <!-- Panneau latéral droit -->
+    <aside class="panneau">
+      <h2 id="panneau-titre">Carte à placer</h2>
+      <p class="consigne" id="panneau-consigne"></p>
+
+      <div class="zone-active-carte">
+        <span class="etiquette-active">Carte à placer</span>
+        <div class="carte-active-wrap" id="carte-active-wrap">
+          <img id="carte-active" class="carte-active" alt="Carte à placer" />
+          <button class="btn-loupe" id="btn-loupe" title="Agrandir la carte"
+                  aria-label="Agrandir la carte">🔍</button>
+        </div>
+        <div class="aide-placement" id="aide-placement">
+          Glissez la carte sur le bon indicateur — ou cliquez la carte puis la zone cible.
+        </div>
+      </div>
+
+      <div class="feedback" id="feedback" role="status" aria-live="polite">Prêt&nbsp;?</div>
+
+      <div class="stats">
+        <div class="stat"><div class="val" id="cpt-restantes">0</div><div class="lib">Cartes restantes</div></div>
+        <div class="stat erreurs"><div class="val" id="cpt-erreurs">0</div><div class="lib">Erreurs</div></div>
+      </div>
+
+      <div class="pioche">
+        <img id="img-pioche" alt="Pioche (dos de carte)" />
+        <span class="txt" id="pioche-txt">Pioche</span>
+      </div>
+
+      <!-- Bandeau de transition / fin d'étape -->
+      <div id="bandeau-etape" class="bandeau-etape cache"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- =========================================================================
+     ÉCRAN 3 — FIN
+     ====================================================================== -->
+<section id="ecran-fin" class="ecran cache">
+  <header class="appli"><h1>🚆 Partie terminée !</h1></header>
+  <div class="centre">
+    <div id="badge-emoji" style="font-size:4rem">🏆</div>
+    <h2 id="badge-titre"></h2>
+    <p id="badge-texte"></p>
+
+    <div style="margin:18px auto; max-width:360px; text-align:left; background:#fff;
+                border-radius:var(--rayon); padding:16px 20px; box-shadow:var(--ombre)">
+      <p>✅ <strong>Cartes bien placées :</strong> <span id="r-placees"></span></p>
+      <p>🎯 <strong>Réussites du premier coup :</strong> <span id="r-premier"></span></p>
+      <p>❌ <strong>Erreurs :</strong> <span id="r-erreurs"></span></p>
+      <p id="ligne-record" class="cache">🥇 <strong>Meilleur score (moins d'erreurs) :</strong> <span id="r-record"></span></p>
+    </div>
+
+    <button id="btn-rejouer">Rejouer</button>
+  </div>
+</section>
+
+<!-- Carte fantôme qui suit le pointeur pendant le glisser-déposer -->
+<img id="ghost" alt="" />
+
+<script>
+"use strict";
+/* ===========================================================================
+   ====  DONNÉES DU JEU  =====================================================
+   Toutes les données modifiables sont regroupées ici, en haut du script.
+   ======================================================================== */
+
+/* Les 6 indicateurs, dans l'ordre */
+const INDICATEURS = [
+  { id: 1, titre: "Production d'offre",          img: "images/indicateur1.png" },
+  { id: 2, titre: "Ponctualité des voyageurs",   img: "images/indicateur2.png" },
+  { id: 3, titre: "Qualité du matériel roulant", img: "images/indicateur3.png" },
+  { id: 4, titre: "Service en gare & à bord",    img: "images/indicateur4.png" },
+  { id: 5, titre: "Sûreté & billettique",        img: "images/indicateur5.png" },
+  { id: 6, titre: "Performance économique",      img: "images/indicateur6.png" },
+];
+
+/* Les 14 sous-indicateurs (cible = id de l'indicateur attendu) */
+const SOUS_INDICATEURS = [
+  { id: 1,  img: "images/sousindicateur1.png",  cible: 1 }, // Réalisation de l'offre — KCC
+  { id: 2,  img: "images/sousindicateur2.png",  cible: 1 }, // Départ à l'heure — H00
+  { id: 3,  img: "images/sousindicateur3.png",  cible: 2 }, // Ponctualité voyageurs
+  { id: 4,  img: "images/sousindicateur4.png",  cible: 3 }, // Composition — HP
+  { id: 5,  img: "images/sousindicateur5.png",  cible: 3 }, // Fiabilité du matériel
+  { id: 6,  img: "images/sousindicateur6.png",  cible: 3 }, // Propreté des trains
+  { id: 7,  img: "images/sousindicateur7.png",  cible: 4 }, // Information voyageurs
+  { id: 8,  img: "images/sousindicateur8.png",  cible: 4 }, // Contact voyageurs
+  { id: 9,  img: "images/sousindicateur9.png",  cible: 4 }, // Élévatique
+  { id: 10, img: "images/sousindicateur10.png", cible: 4 }, // Desserte
+  { id: 11, img: "images/sousindicateur11.png", cible: 5 }, // Sûreté ferroviaire
+  { id: 12, img: "images/sousindicateur12.png", cible: 5 }, // Vente & validations — 1F
+  { id: 13, img: "images/sousindicateur13.png", cible: 6 }, // Recettes directes — RDN / RECIF
+  { id: 14, img: "images/sousindicateur14.png", cible: 6 }, // Charges kilométriques
+];
+
+/* Les 27 cartes métiers (cible = id de l'indicateur attendu) */
+const METIERS = [
+  { id: 1,  img: "images/metier1.png",  cible: 1 }, // Julien / Clara — KCC
+  { id: 2,  img: "images/metier2.png",  cible: 2 }, // Sonia / M. Bernard — ponctualité
+  { id: 3,  img: "images/metier3.png",  cible: 2 }, // Léa / Mei — ponctualité
+  { id: 4,  img: "images/metier4.png",  cible: 3 }, // Sonia / Antoine — fiabilité
+  { id: 5,  img: "images/metier5.png",  cible: 3 }, // Marc / Sarah — composition HP
+  { id: 6,  img: "images/metier6.png",  cible: 3 }, // Awa / Lopez — propreté
+  { id: 7,  img: "images/metier7.png",  cible: 3 }, // Julien / Yanis — fiabilité
+  { id: 8,  img: "images/metier8.png",  cible: 4 }, // Théo / Nora — information voyageurs
+  { id: 9,  img: "images/metier9.png",  cible: 4 }, // Inès / Hans — contact voyageurs
+  { id: 10, img: "images/metier10.png", cible: 4 }, // Hugo / Mme Faure — information à bord
+  { id: 11, img: "images/metier11.png", cible: 1 }, // Léa / Karim — H00
+  { id: 12, img: "images/metier12.png", cible: 4 }, // Rachid / Hélène — élévatique
+  { id: 13, img: "images/metier13.png", cible: 4 }, // Marc / M. Roy — desserte
+  { id: 14, img: "images/metier14.png", cible: 5 }, // Samir / Léna — sûreté
+  { id: 15, img: "images/metier15.png", cible: 5 }, // Inès / Tom — vente & validations
+  { id: 16, img: "images/metier16.png", cible: 5 }, // Théo / Amine — SIDV
+  { id: 17, img: "images/metier17.png", cible: 5 }, // Julien / Mme Petit — sûreté à bord
+  { id: 18, img: "images/metier18.png", cible: 6 }, // Inès / Sofiane — recettes directes
+  { id: 19, img: "images/metier19.png", cible: 6 }, // Sonia / Élodie — charges kilométriques
+  { id: 20, img: "images/metier20.png", cible: 6 }, // Marc / Paul — charges kilométriques
+  { id: 21, img: "images/metier21.png", cible: 6 }, // Théo / Rim — reporting recettes / charges
+  { id: 22, img: "images/metier22.png", cible: 1 }, // Nadia — RH, condition transversale
+  { id: 23, img: "images/metier23.png", cible: 6 }, // Hervé — achats, charges
+  { id: 24, img: "images/metier24.png", cible: 1 }, // Marc / Mamadou — KCC
+  { id: 25, img: "images/metier25.png", cible: 1 }, // Sonia / Camille — KCC
+  { id: 26, img: "images/metier26.png", cible: 2 }, // Julien / Fatou — ponctualité
+  { id: 27, img: "images/metier27.png", cible: 2 }, // Marc / Lucas — ponctualité
+];
+
+/* Dos de carte (utilisé pour la couverture, la pioche et les placeholders) */
+const DOS_CARTE = "images/doscarte.png";
+
+/* Nombre total de cartes à placer (14 sous-indicateurs + 27 métiers) */
+const TOTAL_CARTES_A_PLACER = 41;
+
+/* Seuils de badge (basés sur le nombre d'erreurs) */
+const SEUILS_BADGE = [
+  {
+    maxErreurs: 0,
+    emoji: "🚆",
+    titre: "Maîtres du Contrat",
+    texte: "Félicitations. Vous connaissez le contrat sur le bout des doigts. Indicateurs, sous-indicateurs et attentes voyageurs n'ont plus de secrets pour vous."
+  },
+  {
+    maxErreurs: 5,
+    emoji: "🎯",
+    titre: "Experts de la qualité de service",
+    texte: "Bravo. Vous savez relier les engagements du contrat aux attentes concrètes des voyageurs. Encore un petit effort pour atteindre le niveau maître."
+  },
+  {
+    maxErreurs: Infinity,
+    emoji: "🔎",
+    titre: "Décodeurs du contrat",
+    texte: "Vous avez commencé à assembler les pièces du puzzle. Continuez à explorer les indicateurs : chaque carte vous rapproche d'une meilleure compréhension du contrat."
+  },
+];
+
+/* Clé localStorage pour le meilleur score (optionnel) */
+const CLE_RECORD = "transilien-idfm-record-erreurs";
+
+/* ===========================================================================
+   ====  VÉRIFICATION DE LA RÉPARTITION (contrôle de cohérence des données) ==
+   Affiche un avertissement console si la répartition attendue n'est pas
+   respectée. N'empêche pas le jeu de démarrer.
+   ======================================================================== */
+(function verifierRepartition(){
+  const attenduSous   = {1:2, 2:1, 3:3, 4:4, 5:2, 6:2};
+  const attenduMetier = {1:5, 2:4, 3:4, 4:5, 5:4, 6:5};
+  const compter = (liste) => liste.reduce((acc,c)=>{ acc[c.cible]=(acc[c.cible]||0)+1; return acc; },{});
+  const cs = compter(SOUS_INDICATEURS), cm = compter(METIERS);
+  for (let i=1;i<=6;i++){
+    if ((cs[i]||0)!==attenduSous[i])   console.warn(`Sous-indicateurs : indicateur ${i} = ${cs[i]||0}, attendu ${attenduSous[i]}`);
+    if ((cm[i]||0)!==attenduMetier[i]) console.warn(`Métiers : indicateur ${i} = ${cm[i]||0}, attendu ${attenduMetier[i]}`);
+  }
+})();
+
+/* ===========================================================================
+   ====  ÉTAT DU JEU  ========================================================
+   ======================================================================== */
+const etat = {
+  phase: 2,            // 2 = sous-indicateurs, 3 = métiers
+  deck: [],            // cartes restant à placer (la carte active y reste tant qu'elle n'est pas validée)
+  active: null,        // carte actuellement à placer
+  erreurs: 0,          // compteur d'erreurs
+  premierCoup: 0,      // nombre de cartes placées correctement du premier coup
+  echecsConnus: new Set(), // clés des cartes ayant déjà échoué au moins une fois
+  cartesPlacees: 0,    // nombre de cartes correctement placées (toutes étapes)
+  selection: false,    // mode « toucher » : la carte active est-elle sélectionnée ?
+};
+
+/* Raccourci de sélection DOM */
+const $ = (sel) => document.querySelector(sel);
+
+/* Donne une clé unique à chaque carte (sous-indicateur ou métier) */
+function cle(carte){ return carte.type + carte.id; }
+
+/* ===========================================================================
+   ====  1) PRÉCHARGEMENT & VÉRIFICATION DES IMAGES  =========================
+   Utilise des objets Image() (compatibles file://, contrairement à fetch()).
+   ======================================================================== */
+function toutesLesImages(){
+  const liste = [DOS_CARTE];
+  INDICATEURS.forEach(i => liste.push(i.img));
+  SOUS_INDICATEURS.forEach(s => liste.push(s.img));
+  METIERS.forEach(m => liste.push(m.img));
+  return liste;
+}
+
+function precharger(){
+  const images = toutesLesImages();
+  const total = images.length;
+  let faits = 0;
+  const manquantes = [];
+  const jauge = $("#barre-jauge");
+  const txt   = $("#chargement-txt");
+
+  return new Promise((resolve) => {
+    images.forEach((src) => {
+      const im = new Image();
+      const fini = (ok) => {
+        if (!ok) manquantes.push(src);
+        faits++;
+        const pct = Math.round((faits/total)*100);
+        jauge.style.width = pct + "%";
+        txt.textContent = `Chargement des images… ${faits}/${total}`;
+        if (faits === total) resolve(manquantes);
+      };
+      im.onload  = () => fini(true);
+      im.onerror = () => fini(false);
+      im.src = src;
+    });
+  });
+}
+
+/* ===========================================================================
+   ====  2) OUTILS  ==========================================================
+   ======================================================================== */
+/* Mélange de Fisher–Yates (renvoie un nouveau tableau) */
+function melanger(tab){
+  const a = tab.slice();
+  for (let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+function montrer(idEcran){
+  document.querySelectorAll(".ecran").forEach(e => e.classList.add("cache"));
+  $(idEcran).classList.remove("cache");
+  window.scrollTo(0,0);
+}
+
+/* ===========================================================================
+   ====  3) LIGHTBOX (agrandissement de n'importe quelle carte)  =============
+   ======================================================================== */
+let lightboxEl = null;
+function ouvrirLightbox(src, alt){
+  fermerLightbox();
+  lightboxEl = document.createElement("div");
+  lightboxEl.className = "lightbox";
+  lightboxEl.innerHTML =
+    '<button class="fermer">Fermer ✕</button>' +
+    '<img src="'+src+'" alt="'+(alt||"Carte agrandie")+'">';
+  // Fermeture : clic en dehors de l'image
+  lightboxEl.addEventListener("pointerdown", (e) => {
+    if (e.target === lightboxEl || e.target.classList.contains("fermer")) fermerLightbox();
+  });
+  document.body.appendChild(lightboxEl);
+}
+function fermerLightbox(){
+  if (lightboxEl){ lightboxEl.remove(); lightboxEl = null; }
+}
+// Fermeture au clavier (touche Échap)
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") fermerLightbox(); });
+
+/* ===========================================================================
+   ====  4) ÉTAPE 1 — Afficher les 6 indicateurs  ============================
+   ======================================================================== */
+function construireEtape1(){
+  const grille = $("#grille-indicateurs");
+  grille.innerHTML = "";
+  INDICATEURS.forEach(ind => {
+    const fig = document.createElement("figure");
+    const btn = document.createElement("button");
+    btn.className = "carte-zoom";
+    btn.setAttribute("aria-label", "Agrandir : " + ind.titre);
+    const img = document.createElement("img");
+    img.src = ind.img;
+    img.loading = "lazy";
+    img.alt = "Indicateur " + ind.id + " — " + ind.titre;
+    btn.appendChild(img);
+    btn.addEventListener("click", () => ouvrirLightbox(ind.img, img.alt));
+    fig.appendChild(btn);
+    grille.appendChild(fig);
+  });
+}
+
+/* ===========================================================================
+   ====  5) CONSTRUCTION DU PLATEAU (6 blocs indicateurs)  ===================
+   ======================================================================== */
+function construirePlateau(){
+  const plateau = $("#plateau");
+  plateau.innerHTML = "";
+  INDICATEURS.forEach(ind => {
+    const bloc = document.createElement("div");
+    bloc.className = "bloc-indic";
+
+    // Zone de dépôt des sous-indicateurs (au-dessus de la carte indicateur)
+    const zoneSous = zoneDepot(ind.id, "sous", "Glissez ici les sous-indicateurs");
+
+    // Carte indicateur (cliquable → lightbox)
+    const img = document.createElement("img");
+    img.className = "carte-indic";
+    img.src = ind.img;
+    img.loading = "lazy";
+    img.alt = "Indicateur " + ind.id + " — " + ind.titre;
+    img.addEventListener("click", () => ouvrirLightbox(ind.img, img.alt));
+
+    // Zone de dépôt des métiers (sous la carte indicateur)
+    const zoneMetier = zoneDepot(ind.id, "metier", "Glissez ici les métiers");
+
+    // Titre court de l'indicateur
+    const titre = document.createElement("div");
+    titre.className = "titre-indic";
+    titre.innerHTML = '<span class="num">Indicateur '+ind.id+'</span><br>'+ind.titre;
+
+    bloc.appendChild(zoneSous);
+    bloc.appendChild(titre);
+    bloc.appendChild(img);
+    bloc.appendChild(zoneMetier);
+    plateau.appendChild(bloc);
+  });
+}
+
+/* Crée une zone de dépôt (data-ind, data-type) avec son libellé et son conteneur de miniatures */
+function zoneDepot(indId, type, libelle){
+  const z = document.createElement("div");
+  z.className = "zone";
+  z.dataset.ind = indId;
+  z.dataset.type = type;
+  z.setAttribute("role", "button");
+  z.setAttribute("tabindex", "0");
+  z.setAttribute("aria-label", libelle + " — indicateur " + indId);
+
+  const lab = document.createElement("span");
+  lab.className = "label-zone";
+  lab.textContent = libelle;
+
+  const minis = document.createElement("div");
+  minis.className = "miniatures";
+
+  z.appendChild(lab);
+  z.appendChild(minis);
+
+  // Mode « toucher » : cliquer une zone tente d'y placer la carte sélectionnée
+  z.addEventListener("click", () => {
+    if (etat.selection && z.classList.contains("active")) tenterPlacement(indId);
+  });
+  // Accessibilité clavier : Entrée / Espace
+  z.addEventListener("keydown", (e) => {
+    if ((e.key === "Enter" || e.key === " ") && z.classList.contains("active")){
+      e.preventDefault();
+      if (etat.selection) tenterPlacement(indId);
+    }
+  });
+  return z;
+}
+
+/* Active/désactive les zones selon l'étape en cours */
+function majZonesActives(){
+  document.querySelectorAll(".zone").forEach(z => {
+    const active = (etat.phase === 2 && z.dataset.type === "sous") ||
+                   (etat.phase === 3 && z.dataset.type === "metier");
+    z.classList.toggle("active", active);
+    z.classList.toggle("inactive", !active);
+  });
+}
+
+/* ===========================================================================
+   ====  6) DÉROULÉ DU JEU  ==================================================
+   ======================================================================== */
+function demarrerPhase(phase){
+  etat.phase = phase;
+  etat.selection = false;
+  const source = (phase === 2) ? SOUS_INDICATEURS : METIERS;
+  const type   = (phase === 2) ? "sous" : "metier";
+  // On crée des copies de cartes enrichies d'un champ "type"
+  etat.deck = melanger(source.map(c => ({ id:c.id, img:c.img, cible:c.cible, type })));
+
+  // Textes du panneau
+  $("#titre-jeu").textContent = (phase === 2)
+    ? "🚆 Étape 2 — Placer les sous-indicateurs"
+    : "🚆 Étape 3 — Placer les métiers";
+  $("#panneau-titre").textContent = (phase === 2) ? "Étape 2 / 3" : "Étape 3 / 3";
+  $("#panneau-consigne").textContent = (phase === 2)
+    ? "Lisez la carte, puis placez-la au-dessus du bon indicateur."
+    : "Lisez la carte, puis placez-la sous le bon indicateur.";
+
+  $("#bandeau-etape").classList.add("cache");
+  majZonesActives();
+  majCompteurs();
+  piocher();
+}
+
+/* Tire une nouvelle carte active aléatoire parmi le deck */
+function piocher(eviterCle){
+  if (etat.deck.length === 0){ etat.active = null; finPhase(); return; }
+  let candidats = etat.deck;
+  // Évite si possible de retirer immédiatement la même carte qui vient d'échouer
+  if (eviterCle && etat.deck.length > 1){
+    const filtres = etat.deck.filter(c => cle(c) !== eviterCle);
+    if (filtres.length) candidats = filtres;
+  }
+  etat.active = candidats[Math.floor(Math.random()*candidats.length)];
+  etat.selection = false;
+  afficherActive();
+}
+
+/* Affiche la carte active dans le panneau */
+function afficherActive(){
+  const img = $("#carte-active");
+  if (!etat.active){ img.removeAttribute("src"); return; }
+  img.src = etat.active.img;
+  img.alt = (etat.phase === 2 ? "Sous-indicateur " : "Métier ") + etat.active.id + " — à placer";
+  img.classList.remove("selection");
+}
+
+/* Met à jour les compteurs et la pioche */
+function majCompteurs(){
+  $("#cpt-restantes").textContent = etat.deck.length;
+  $("#cpt-erreurs").textContent = etat.erreurs;
+  $("#pioche-txt").textContent = "Pioche : " + etat.deck.length + " carte(s)";
+}
+
+/* Affiche un retour visuel + textuel */
+function feedback(ok, message){
+  const f = $("#feedback");
+  f.className = "feedback " + (ok ? "ok" : "ko");
+  f.textContent = message;
+}
+
+/* Tentative de placement de la carte active sur l'indicateur indId */
+function tenterPlacement(indId){
+  if (!etat.active) return;
+  const carte = etat.active;
+
+  if (carte.cible === indId){
+    /* ---- BONNE RÉPONSE ---- */
+    const premier = !etat.echecsConnus.has(cle(carte));
+    if (premier) etat.premierCoup++;
+    etat.cartesPlacees++;
+
+    // Retire la carte du deck (elle est verrouillée)
+    etat.deck = etat.deck.filter(c => cle(c) !== cle(carte));
+
+    ajouterMiniature(indId, carte);
+    feedback(true, "Bonne réponse ✓");
+    etat.selection = false;
+    majCompteurs();
+
+    // Carte suivante (ou fin d'étape)
+    piocher();
+  } else {
+    /* ---- MAUVAISE RÉPONSE ---- */
+    etat.erreurs++;
+    etat.echecsConnus.add(cle(carte));      // cette carte ne sera plus « du premier coup »
+    feedback(false, "Mauvaise réponse ✗");
+    etat.selection = false;
+    majCompteurs();
+    // La carte reste dans le deck (jamais sur le plateau) ; on en tire une autre
+    piocher(cle(carte));
+  }
+}
+
+/* Ajoute une miniature verrouillée dans la bonne zone */
+function ajouterMiniature(indId, carte){
+  const sel = '.zone[data-ind="'+indId+'"][data-type="'+carte.type+'"] .miniatures';
+  const conteneur = document.querySelector(sel);
+  const img = document.createElement("img");
+  img.src = carte.img;
+  img.loading = "lazy";
+  img.alt = (carte.type === "sous" ? "Sous-indicateur " : "Métier ") + carte.id + " (placé)";
+  img.addEventListener("click", () => ouvrirLightbox(carte.img, img.alt)); // toujours agrandissable
+  conteneur.appendChild(img);
+}
+
+/* Fin d'une étape */
+function finPhase(){
+  if (etat.phase === 2){
+    // Toutes les sous-indicateurs placées → proposer le passage aux métiers
+    const b = $("#bandeau-etape");
+    b.classList.remove("cache");
+    b.innerHTML = "🎉 Bravo ! Les 14 sous-indicateurs sont bien placés.<br>" +
+                  '<button id="btn-passer-metiers">Passer aux métiers</button>';
+    $("#btn-passer-metiers").addEventListener("click", () => {
+      // On conserve les sous-indicateurs déjà placés ; on lance l'étape 3
+      demarrerPhase(3);
+    });
+    $("#carte-active").removeAttribute("src");
+    feedback(true, "Étape 2 terminée ✓");
+  } else {
+    // Toutes les métiers placées → écran de fin
+    afficherFin();
+  }
+}
+
+/* ===========================================================================
+   ====  7) ÉCRAN DE FIN — score & badge  ====================================
+   ======================================================================== */
+function badgePour(erreurs){
+  // Premier seuil dont maxErreurs >= erreurs
+  return SEUILS_BADGE.find(s => erreurs <= s.maxErreurs) || SEUILS_BADGE[SEUILS_BADGE.length-1];
+}
+
+function afficherFin(){
+  const badge = badgePour(etat.erreurs);
+  $("#badge-emoji").textContent = badge.emoji;
+  $("#badge-titre").textContent = badge.titre;
+  $("#badge-texte").textContent = badge.texte;
+  $("#r-placees").textContent  = etat.cartesPlacees + "/" + TOTAL_CARTES_A_PLACER;
+  $("#r-premier").textContent  = etat.premierCoup + "/" + TOTAL_CARTES_A_PLACER;
+  $("#r-erreurs").textContent  = etat.erreurs;
+
+  // Meilleur score (optionnel) : on garde le plus petit nombre d'erreurs
+  try {
+    const ancien = localStorage.getItem(CLE_RECORD);
+    const record = (ancien === null) ? etat.erreurs : Math.min(parseInt(ancien,10), etat.erreurs);
+    localStorage.setItem(CLE_RECORD, String(record));
+    $("#r-record").textContent = record + " erreur(s)";
+    $("#ligne-record").classList.remove("cache");
+  } catch(e){ /* localStorage indisponible (ex. file://) : on ignore */ }
+
+  montrer("#ecran-fin");
+}
+
+/* Réinitialise toute la partie */
+function reinitialiser(){
+  etat.erreurs = 0;
+  etat.premierCoup = 0;
+  etat.echecsConnus.clear();
+  etat.cartesPlacees = 0;
+  etat.active = null;
+  etat.selection = false;
+  // Vide toutes les miniatures du plateau
+  document.querySelectorAll(".miniatures").forEach(m => m.innerHTML = "");
+  feedback(true, "Prêt ?");
+  montrer("#ecran-jeu");
+  demarrerPhase(2);
+}
+
+/* ===========================================================================
+   ====  8) GLISSER-DÉPOSER (Pointer Events) + MODE « TOUCHER »  =============
+   ======================================================================== */
+function initInteractions(){
+  const carte = $("#carte-active");
+  const ghost = $("#ghost");
+  let drag = null; // { startX, startY, dragging }
+
+  const SEUIL = 6; // pixels avant de considérer qu'il s'agit d'un glisser (sinon = tap)
+
+  carte.addEventListener("pointerdown", (e) => {
+    if (!etat.active) return;
+    e.preventDefault();
+    drag = { startX:e.clientX, startY:e.clientY, dragging:false };
+    try { carte.setPointerCapture(e.pointerId); } catch(_){}
+  });
+
+  carte.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+    if (!drag.dragging && Math.hypot(dx,dy) > SEUIL){
+      // Démarrage du glisser : on affiche la carte fantôme
+      drag.dragging = true;
+      ghost.src = etat.active.img;
+      ghost.style.display = "block";
+    }
+    if (drag.dragging){
+      ghost.style.left = e.clientX + "px";
+      ghost.style.top  = e.clientY + "px";
+      surlignerSousPointeur(e.clientX, e.clientY);
+    }
+  });
+
+  carte.addEventListener("pointerup", (e) => {
+    if (!drag) return;
+    try { carte.releasePointerCapture(e.pointerId); } catch(_){}
+
+    if (drag.dragging){
+      // Fin du glisser : on cherche la zone active sous le pointeur
+      ghost.style.display = "none";
+      const zone = zoneActiveSousPointeur(e.clientX, e.clientY);
+      nettoyerSurvol();
+      if (zone) tenterPlacement(parseInt(zone.dataset.ind,10));
+    } else {
+      // Simple clic/tap : on (dé)sélectionne la carte (mode « toucher »)
+      etat.selection = !etat.selection;
+      carte.classList.toggle("selection", etat.selection);
+    }
+    drag = null;
+  });
+
+  carte.addEventListener("pointercancel", () => {
+    ghost.style.display = "none"; nettoyerSurvol(); drag = null;
+  });
+
+  // Bouton loupe : agrandit la carte active
+  $("#btn-loupe").addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (etat.active) ouvrirLightbox(etat.active.img, "Carte à placer");
+  });
+}
+
+/* Renvoie la zone de dépôt ACTIVE située sous les coordonnées, ou null */
+function zoneActiveSousPointeur(x, y){
+  const el = document.elementFromPoint(x, y);
+  if (!el) return null;
+  const zone = el.closest(".zone");
+  return (zone && zone.classList.contains("active")) ? zone : null;
+}
+
+/* Surligne la zone active survolée pendant le glisser */
+function surlignerSousPointeur(x, y){
+  nettoyerSurvol();
+  const zone = zoneActiveSousPointeur(x, y);
+  if (zone) zone.classList.add("survol");
+}
+function nettoyerSurvol(){
+  document.querySelectorAll(".zone.survol").forEach(z => z.classList.remove("survol"));
+}
+
+/* ===========================================================================
+   ====  9) DÉMARRAGE DE L'APPLICATION  ======================================
+   ======================================================================== */
+function init(){
+  // Visuels « dos de carte »
+  $("#img-couverture").src = DOS_CARTE;
+  $("#img-pioche").src = DOS_CARTE;
+  $("#carte-active").src = DOS_CARTE; // placeholder en attendant la 1re pioche
+
+  // Préchargement + vérification de toutes les images
+  precharger().then((manquantes) => {
+    if (manquantes.length > 0){
+      // Au moins une image manque : on bloque le démarrage
+      $("#chargement").classList.add("cache");
+      const ul = $("#liste-manquantes");
+      ul.innerHTML = "";
+      manquantes.forEach(src => {
+        const li = document.createElement("li");
+        li.innerHTML = "<code>" + src + "</code>";
+        ul.appendChild(li);
+      });
+      $("#bloc-erreur").classList.remove("cache");
+      return; // bouton « Commencer » reste désactivé
+    }
+    // Tout est prêt
+    $("#chargement").classList.add("cache");
+    const btn = $("#btn-commencer");
+    btn.classList.remove("cache");
+    btn.disabled = false;
+  });
+
+  // Construction des écrans
+  construireEtape1();
+  construirePlateau();
+  initInteractions();
+
+  // --- Navigation entre écrans ---
+  $("#btn-commencer").addEventListener("click", () => { montrer("#ecran-etape1"); });
+  $("#btn-comprendre").addEventListener("click", () => {
+    montrer("#ecran-jeu");
+    demarrerPhase(2);
+  });
+  $("#btn-rejouer").addEventListener("click", reinitialiser);
+  $("#btn-rejouer-haut").addEventListener("click", () => {
+    if (confirm("Recommencer la partie depuis l'étape 2 ?")) reinitialiser();
+  });
+}
+
+document.addEventListener("DOMContentLoaded", init);
+</script>
+</body>
+</html>
