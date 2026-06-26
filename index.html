@@ -98,14 +98,14 @@ header.appli .pousse{ margin-left:auto; }
 .centre h2{ font-size:1.8rem; margin:.2em 0 .4em; }
 .centre p{ font-size:1.05rem; }
 .couverture{
-  width:230px;
+  display:inline-block;
   margin:26px auto;
   border-radius:var(--rayon);
   box-shadow:var(--ombre);
   overflow:hidden;
   background:var(--panneau);
 }
-.couverture img{ width:100%; }
+.couverture img{ height:30vh; width:auto; display:block; }
 
 /* Barre de progression du préchargement des images */
 .chargement{ margin:24px auto; max-width:420px; }
@@ -852,10 +852,10 @@ function tenterPlacement(indId){
     etat.erreurs++;
     etat.echecsConnus.add(cle(carte));      // cette carte ne sera plus « du premier coup »
     feedback(false, "Mauvaise réponse ✗");
-    etat.selection = false;
     majCompteurs();
-    // La carte reste dans le deck (jamais sur le plateau) ; on en tire une autre
-    piocher(cle(carte));
+    // On NE change PAS de carte : la même carte reste affichée pour que le
+    // joueur réessaie jusqu'à trouver le bon indicateur. (Le bouton
+    // « Proposer une autre carte » reste disponible s'il préfère en changer.)
   }
 }
 
