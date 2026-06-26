@@ -98,8 +98,10 @@ header.appli .pousse{ margin-left:auto; }
 .centre h2{ font-size:1.8rem; margin:.2em 0 .4em; }
 .centre p{ font-size:1.05rem; }
 .couverture{
-  display:inline-block;
-  margin:26px auto;
+  display:block;
+  width:max-content;
+  max-width:100%;
+  margin:26px auto;          /* bloc centré : le bouton repasse dessous */
   border-radius:var(--rayon);
   box-shadow:var(--ombre);
   overflow:hidden;
